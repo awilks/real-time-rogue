@@ -1,14 +1,4 @@
 function getAngle(x,y)
-	-- local temp = math.atan(y/x)
-	-- if x>= 0 and y < 0 then
-	-- 	return math.pi + temp
-	-- elseif x>=0 and y>=0 then
-	-- 	return temp
-	-- elseif x<0 and y>=0 then
-	-- 	return math.pi + temp
-	-- else 
-	-- 	return math.pi + temp
-	-- end
 	return math.atan2(y,x)
 
 end
@@ -45,9 +35,9 @@ function projLine(x1,y1, x2, y2, ux, uy)
 	end
 end
 
-function projPoly(verts, numverts, ux, uy)
+function projPoly(verts, ux, uy)
 	local vertProj = {}
-	for i = 1, numVerts, 1 do
+	for i = 1, #verts/2, 1 do
 		vertProj[i] = verts[i*2 -1]*ux + verts[i*2]*uy
 	end
 	return math.min(unpack(vertProj)), math.max(unpack(vertProj))
@@ -91,6 +81,13 @@ function getAxesLine(x1,y1,x2,y2)
 end
 
 
+function pairVertices(vertices)
+	local vTemp = {}
+	for i=1, (#vertices/2) do
+		vTemp[i] = {x = vertices[i*2-1], y = vertices[i*2]}
+	end
+	return vTemp
+end
 function getAxesPoly(vertices)
 	axes = {}
 	local j = #vertices
@@ -117,8 +114,46 @@ end
 
 function satCirclePoly(c,p)
 	local tempx, tempy = closestPointPoints(c.x, c.y, p.vertices)
-	local axes2 = getAxesPoly(p.vertices)
+	local ax1 = {normalize(tempx - c.x, tempy - c.y)}
+	local axes2 = getAxesPoly(pairVertices(p.vertices))
+	local minOverlap = 10000
+	local minAxis = nil
 
+	-- try ax1
+
+	local p1 = {projCircle(c.x,c.y,c.r, ax1[1], ax1[2])}
+	local p2 = {projPoly(p.vertices, ax1[1], ax1[2])}
+
+	--check if projections overlap
+	if (not overlap(p1, p2)) then 
+		return false
+	else
+		local o = getOverlap(p1, p2)
+		if math.abs(o) < math.abs(minOverlap) then 
+			minOverlap = o 
+			minAxis = ax1
+		end
+	end
+
+	--check axes2
+
+	for i = 1, #axes2, 1 do
+		local axis = axes2[i]
+		p1 = {projCircle(c.x,c.y, c.r, axis[1], axis[2])}
+		p2 = {projPoly(p.vertices, axis[1], axis[2])}
+
+		if (not overlap(p1,p2)) then 
+			return false
+		else
+			local o = getOverlap(p1,p2)
+			if math.abs(o) < math.abs(minOverlap) then 
+				minOverlap = o
+				minAxis = axis
+				print("changed initial")
+			end
+		end
+	end
+	return true, minAxis, minOverlap
 end
 
 function satCircleLine(cx,cy,cr,lx1,ly1,lx2,ly2)

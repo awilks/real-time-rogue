@@ -16,6 +16,8 @@ SwordWidth = 2
 spaceDown = false
 FOV = 100
 HeroRadius = 6
+InvincTime = 0.3
+KnockBackSpeed = 300
 
 --debugging variables
 
@@ -23,7 +25,7 @@ hasIntersection = false
 
 
 --initialize hero
-hero = {vx = 0, vy = 0 , x = 50, y = 50, wantSwing = false, fx = 0., fy = 0., fovR = FOV}
+hero = {vx = 0, vy = 0 , x = 50, y = 50, wantSwing = false, fx = 0., fy = 0., fovR = FOV, invinc = false, invincTimer = 0, knockedBack = false, knockBackTimer = 0, knockBackVX = 0, knockBackVY = 0, invincTime = InvincTime}
 
 -- initialize sword
 sword = {on = false, dur = 0, del = 0, vs ={0,0,0,0,0,0,0,0,0,0}, init = false }
@@ -65,13 +67,28 @@ numActiveWalls = 1
 
 
 
+function isHeroHit()
+  if hero.invinc then return false, nil
+  else
+    for i = 1, #activeEnemies do
+      local e = activeEnemies[i]
+      local hits, axis, overlap = e:hitHero()
+      if hits then
+        return true, axis
+      end
+    end
+    return false, nil
+  end
+end
+
 function love.load(arg)
 	-- test of active walls
    activeWalls[1] = {x1 = 100, y1 = 100 , x2 = 200, y2 = 100}
    activeWalls[2] = {x1 = 200, y1 = 100, x2 = 300, y2 = 300}
    numActiveWalls = 2
 
-   activeEnemies[1] = {type = "e1", x = 400 , y = 400}
+   activeEnemies[1] = E1:new{x= 300, y= 300}
+
 
    debugOn = true
 
@@ -139,6 +156,8 @@ function love.update(dt)
    	spaceDown = false
    end
 
+   
+
    --set facing direction
 
    if hero.vx > 0 then 
@@ -182,6 +201,34 @@ function love.update(dt)
 
    --game logic
 
+   --updating invinvibility
+
+   if hero.invinc then
+    if hero.invincTimer <= 0 then
+      hero.invinc = false
+    else
+      hero.invincTimer = hero.invincTimer - dt
+    end
+   end
+
+   --updating speed for knockback
+
+   if hero.knockback then
+    if hero.knockBackTimer <= 0 then
+      hero.knockback = false
+    else
+      hero.knockBackTimer = hero.knockBackTimer - dt
+      hero.vx = hero.knockBackVX
+      hero.vy = hero.knockBackVY
+    end
+  end
+
+  -- updating enemies statuses
+
+  for i=1, #activeEnemies do 
+    activeEnemies[i]:updateStatuses(dt)
+  end
+
 -- get active walls
 
 --get active enemies
@@ -219,9 +266,8 @@ function love.update(dt)
 
    for i = 1, #activeEnemies do
     local e = activeEnemies[i]
-    local t = enemyTypes[e.type]
-    local vx, vy = t.getSpeed(e.x, e.y)
-    e.x, e.y = t.move(e.x, e.y, vx, vy, dt)
+    e:getSpeed()
+    e:move(dt)
    end
 
 
@@ -234,6 +280,9 @@ function love.update(dt)
    		sword["on"] = false
    		sword["del"] = SwordDelay
    		sword["dur"] = 0
+      for i = 1, #sword.vs do
+        sword.vs[i] = -100
+      end
    	else
    		sword["dur"] = sword["dur"] + 1
    		--calculate vertices of sword
@@ -264,6 +313,28 @@ function love.update(dt)
      end 
    end
 
+   --check if enemy is hit
+
+   for i = 1, #activeEnemies do
+    local e = activeEnemies[i]
+    e:hitSword()
+   end
+
+
+
+   --check if hero is hit
+
+   local isHit, axis = isHeroHit()
+   if isHit then
+    print("hit works")
+    hero.knockback = true 
+    hero.knockBackTimer = hero.invincTime
+    hero.knockBackVX = axis[1]*KnockBackSpeed
+    hero.knockBackVY = axis[2]*KnockBackSpeed
+    hero.invinc = true
+    hero.invincTimer = hero.invincTime
+   end
+
    -- debugging stuff
    word = ""
    word = word .. "hero stuff: \n x:" .. hero.x .. "\n y:" .. hero.y .. "\n sword:\n"
@@ -275,16 +346,37 @@ function love.update(dt)
     word = word .. "has intersection\n"
   end
 
-  word = word .. "fov: \n"
+  -- word = word .. "fov: \n"
 
-  for i = 1, #fov, 1 do
-    word = word .. i .. "ang:".. fov[i].angle .. ", " .. tostring(fov[i].blocked) .. "\n"
-    word = word .. fov[i].x .. ", " .. fov[i].y .. "\n"
+  -- for i = 1, #fov, 1 do
+  --   word = word .. i .. "ang:".. fov[i].angle .. ", " .. tostring(fov[i].blocked) .. "\n"
+  --   word = word .. fov[i].x .. ", " .. fov[i].y .. "\n"
+  -- end
+
+  
+
+  if hero.knockback then
+    word = word .."being knocked back\n"
   end
+
+  if hero.invinc then
+    word = word .."hero is invincible\n"
+  end
+
+
 end
 
 function love.draw(dt)
 	love.graphics.print(word, 300, 0)
+
+
+  -- drawing game window
+
+  --centering window around hero
+
+  love.graphics.push()
+  love.graphics.translate(-hero.x, -hero.y)
+  love.graphics.translate(300, 350)
 
   --drawing fov
 
@@ -296,8 +388,7 @@ function love.draw(dt)
 
   for i = 1, #activeEnemies do
     local e = activeEnemies[i]
-    local t = enemyTypes[e.type]
-    t.draw(e.x, e.y)
+    e:draw(e.x, e.y)
   end
 
 	
@@ -326,6 +417,8 @@ function love.draw(dt)
 		wall = activeWalls[i]
 		love.graphics.line(wall.x1, wall.y1, wall.x2, wall.y2)
 	end
+
+  love.graphics.pop()
 
   
 
