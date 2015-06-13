@@ -19,13 +19,14 @@ HeroRadius = 6
 InvincTime = 0.3
 KnockBackSpeed = 300
 
+
 --debugging variables
 
 hasIntersection = false
 
 
 --initialize hero
-hero = {vx = 0, vy = 0 , x = 50, y = 50, wantSwing = false, fx = 0., fy = 0., fovR = FOV, invinc = false, invincTimer = 0, knockedBack = false, knockBackTimer = 0, knockBackVX = 0, knockBackVY = 0, invincTime = InvincTime}
+hero = {vx = 0, vy = 0 , x = 50, y = 50, wantSwing = false, fx = 0., fy = 0., fovR = FOV, invinc = false, invincTimer = 0, knockedBack = false, knockBackTimer = 0, knockBackVX = 0, knockBackVY = 0, invincTime = InvincTime, attack = 10}
 
 -- initialize sword
 sword = {on = false, dur = 0, del = 0, vs ={0,0,0,0,0,0,0,0,0,0}, init = false }
@@ -87,7 +88,29 @@ function love.load(arg)
    activeWalls[2] = {x1 = 200, y1 = 100, x2 = 300, y2 = 300}
    numActiveWalls = 2
 
-   activeEnemies[1] = E1:new{x= 300, y= 300}
+   activeEnemies[1] = E1:new{x=300, y=300}
+   activeEnemies[2] = E1:new{x=500, y=500}
+
+
+   --test shader
+
+   blendOut = love.graphics.newShader[[
+      vec4 effect(vec4 color, Image texture, vec2 texture_coords, vec2 screen_coords )
+      {
+          number blackness = 100.0 - sqrt(abs(pow((300 - screen_coords.x),2) + pow((350-screen_coords.y), 2)));
+          blackness = blackness/100.0;
+          if (blackness < 0.0)
+            blackness = 0.0;
+          vec4 pixel = color;
+          pixel.r = pixel.r*blackness;
+          pixel.g = pixel.g*blackness;
+          pixel.b = pixel.b*blackness;
+          return pixel;
+      }
+
+   ]]
+
+
 
 
    debugOn = true
@@ -335,6 +358,17 @@ function love.update(dt)
     hero.invincTimer = hero.invincTime
    end
 
+   --check if enemies are dead
+
+   local j = 1
+   while j <= #activeEnemies do
+    if activeEnemies[j].dead then
+      table.remove(activeEnemies,j)
+      j = j-1
+    end
+    j = j+1
+  end
+
    -- debugging stuff
    word = ""
    word = word .. "hero stuff: \n x:" .. hero.x .. "\n y:" .. hero.y .. "\n sword:\n"
@@ -378,6 +412,10 @@ function love.draw(dt)
   love.graphics.translate(-hero.x, -hero.y)
   love.graphics.translate(300, 350)
 
+  --adding shader
+  love.graphics.setShader(blendOut)
+
+
   --drawing fov
 
   fovDraw(dt)
@@ -412,13 +450,15 @@ function love.draw(dt)
 
 	--drawing test walls 
 
-	for i = 1 , numActiveWalls , 1 do
-		love.graphics.setColor(0,0,255)
-		wall = activeWalls[i]
-		love.graphics.line(wall.x1, wall.y1, wall.x2, wall.y2)
-	end
+	-- for i = 1 , numActiveWalls , 1 do
+	-- 	love.graphics.setColor(0,0,255)
+	-- 	wall = activeWalls[i]
+	-- 	love.graphics.line(wall.x1, wall.y1, wall.x2, wall.y2)
+	-- end
 
   love.graphics.pop()
+
+  love.graphics.setShader()
 
   
 

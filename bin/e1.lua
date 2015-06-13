@@ -1,5 +1,5 @@
 
-E1 = {x = 100, y = 100, speed = 45, radius = 10, knockbackspeed = 300, knockbacktime = 0.2, invinctime = 0.2}
+E1 = {x = 100, y = 100, speed = 45, radius = 10, knockbackspeed = 300, knockbacktime = 0.2, invinctime = 0.2, health =40}
 
 
 
@@ -68,7 +68,9 @@ function E1:hitSword()
 	    	self.invinc = true 
 	    	self.knockBackTimer = self.knockbacktime
 	    	self.invincTimer = self.invinctime
+	    	self.health = self.health - hero.attack
 	     end
+	     if self.health <=0 then self.dead = true end
 	     return 
     end
 end
