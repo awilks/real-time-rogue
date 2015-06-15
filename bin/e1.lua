@@ -1,5 +1,5 @@
 
-E1 = {x = 100, y = 100, speed = 45, radius = 10, knockbackspeed = 300, knockbacktime = 0.2, invinctime = 0.2, health =40}
+E1 = {x = 100, y = 100, speed = 45, radius = 10, knockbackspeed = 300, knockbacktime = 0.2, invinctime = 0.2, health =40, r = 10}
 
 
 
@@ -78,4 +78,33 @@ end
 function E1:draw(x,y)
 	love.graphics.setColor(255, 0, 0)
 	love.graphics.circle("fill", x, y, self.radius, 500)
+end
+
+function E1:rayHits(dx, dy)
+	return circleRayIntersection(self,dx, dy, hero.x, hero.y)
+end
+
+function E1:rayHitsFirst(dx,dy)
+	local nsol, t1, t2 = self:rayHits(dx,dy)
+	if nsol == 0 then return nil
+	elseif nsol == 1 then 
+		if t1 > 0 then return t1  
+		else return false
+		end
+	else 
+		if t1 > 0 then 
+			if t2 > 0 and t2 < t1 then
+				return t2
+			else 
+				return t1
+			end
+		elseif t2 >0 then
+			return t2
+		else return nil
+		end
+	end
+end
+
+function E1:rayTo()
+	return normalize(self.x - hero.x, self.y - hero.y)
 end

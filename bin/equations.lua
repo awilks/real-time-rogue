@@ -6,10 +6,10 @@ end
 
 function quadEq(a,b,c)
 	local temp = b^2 - 4*a*c
-	if temp < 0 then return -1 
-	elseif temp == 0 then return -2,  -b/(2*a)
+	if temp < 0 then return 0 
+	elseif temp == 0 then return 1,  -b/(2*a)
 	else
-		return (-b - math.sqrt(temp))/(2*a) , (-b + math.sqrt(temp))/(2*a)
+		return 2, (-b - math.sqrt(temp))/(2*a) , (-b + math.sqrt(temp))/(2*a)
     end
 end
 
@@ -235,7 +235,8 @@ function shortestSegmentToRay(x, y, dx, dy, segments)
 			end
 		end
 	end
-	return minSeg, point
+	if minT1 > hero.fovR then minT1 = hero.fovR end
+	return minSeg, point, minT1
 end
 
 function towardHero(x,y)

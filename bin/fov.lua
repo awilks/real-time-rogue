@@ -70,10 +70,10 @@ function getPerIntersections(x,y,wallSegs)
 		if seg == nil then
 			break
 		end
-		local t1, t2 = quadEq(seg.dx^2 +seg.dy^2, 2*(seg.dy*(seg.y - y) + seg.dx*(seg.x - x)), (seg.y - y)^2 + (seg.x - x)^2 - hero.fovR^2)
-		if t1 == -1 then
-		elseif t1 == -2 then 
-			perIntersections[j] = {x = seg.x + t2*dx, y = seg.y + t2*dy}
+		local nsol, t1, t2 = quadEq(seg.dx^2 +seg.dy^2, 2*(seg.dy*(seg.y - y) + seg.dx*(seg.x - x)), (seg.y - y)^2 + (seg.x - x)^2 - hero.fovR^2)
+		if nsol == 0 then
+		elseif nsol == 1 then 
+			perIntersections[j] = {x = seg.x + t1*dx, y = seg.y + t1*dy}
 			j = j+1
 		else
 			perIntersections[j] = {x = seg.x + t1*seg.dx, y = seg.y + t1*seg.dy}
@@ -85,12 +85,14 @@ function getPerIntersections(x,y,wallSegs)
 end
 
 function generateFOV(x, y, activeWalls)
+	activeEnemies = {}
 	fov = {}
 	local wallSegs = processWalls(activeWalls)
 	local perIntersections = getPerIntersections(x,y, wallSegs)
 	local rays = getFovRays(x, y, activeWalls, perIntersections)
 	table.sort(rays)
 	local i =1
+
 	for i = 1, #rays, 1 do
 		local ray = rays[i]
 		local sgn = 1
@@ -98,19 +100,37 @@ function generateFOV(x, y, activeWalls)
 			sgn = -1
 		end
 		local dx, dy = normalize(sgn*1, sgn*math.tan(ray))
-		local seg, p = shortestSegmentToRay(x, y, dx, dy,wallSegs)
+		local seg, p, t1 = shortestSegmentToRay(x, y, dx, dy,wallSegs)
 		if p == nil then
 			fov[i] = {x= x + dx*hero.fovR, y= y+ dy*hero.fovR, blocked=false, angle = ray}
 		else 
 			fov[i] = {x = p.x, y = p.y, blocked = true, angle = ray}
 		end
+
+		--checking if ray hits any enemies
+		makeEnemiesActive(hero.x, hero.y, dx, dy,t1) 
+
+
 		while rays[i+1] == ray and i <= #rays do
 			i = i + 1
 		end
 	end
+
+	--do final checks for active enemies by sending ray at them
+	for i =1, #enemies do
+		e = enemies[i]
+		local dx, dy = e:rayTo()
+		--print ("dx:" .. dx .. " dy:".. dy)
+		local seg, p, t = shortestSegmentToRay(x, y, dx, dy,wallSegs)
+		local t2 = e:rayHitsFirst(dx, dy)
+		if t2 < t then 
+			makeActive(e)
+		end
+	end
+
 end
 
-function fovDraw(dt)
+function fovDraw()
 	love.graphics.setColor(255,204,0)
 	if fov[1].blocked then
 			love.graphics.polygon("fill", fov[#fov].x, fov[#fov].y, fov[1].x, fov[1].y, hero.x, hero.y)
